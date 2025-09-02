@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API</title>
+    <style>
+        body { 
+            font-family: monospace; 
+            margin: 20px; 
+            background: #f5f5f5;
+        }
+        .container { 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        button:hover { background: #0056b3; }
+        .result {
+            background: #f8f9fa;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+            border-left: 4px solid #007bff;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+        }
+        .success { border-left-color: #28a745; }
+        .error { border-left-color: #dc3545; }
+        input, textarea, select {
+            width: 200px;
+            padding: 5px;
+            margin: 5px;
+            border: 1px solid #ddd;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test API</h1>
+        
+        <div class="section">
+            <h3>GET /api/tasks</h3>
+            <button onclick="getTasks()">Get All Tasks</button>
+            <div id="tasksResult" class="result"></div>
+        </div>
+        
+        <div class="section">
+            <h3>POST /api/tasks</h3>
+            <input type="text" id="taskTitle" placeholder="Title" value="Test Task">
+            <input type="text" id="taskDescription" placeholder="Description" value="Test Description">
+            <select id="taskStatus">
+                <option value="pending">pending</option>
+                <option value="in_progress">in_progress</option>
+                <option value="completed">completed</option>
+            </select>
+            <button onclick="createTask()">Create Task</button>
+            <div id="createResult" class="result"></div>
+        </div>
+        
+        <div class="section">
+            <h3>GET /api/tasks/{id}</h3>
+            <input type="number" id="taskId" value="1">
+            <button onclick="getTask()">Get Task</button>
+            <div id="getResult" class="result"></div>
+        </div>
+        
+        <div class="section">
+            <h3>PUT /api/tasks/{id}</h3>
+            <input type="number" id="updateTaskId" value="1">
+            <input type="text" id="updateTitle" placeholder="New Title">
+            <select id="updateStatus">
+                <option value="">Keep Current</option>
+                <option value="pending">pending</option>
+                <option value="in_progress">in_progress</option>
+                <option value="completed">completed</option>
+            </select>
+            <button onclick="updateTask()">Update Task</button>
+            <div id="updateResult" class="result"></div>
+        </div>
+        
+        <div class="section">
+            <h3>DELETE /api/tasks/{id}</h3>
+            <input type="number" id="deleteTaskId" value="1">
+            <button onclick="deleteTask()" style="background: #dc3545;">Delete Task</button>
+            <div id="deleteResult" class="result"></div>
+        </div>
+        
+        <div class="section">
+            <h3>Full Test</h3>
+            <button onclick="runFullTest()" style="background: #28a745;">Run All Tests</button>
+            <div id="testResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api';
+        
+        async function makeRequest(method, url, data = null) {
+            try {
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
+                };
+                
+                if (data) {
+                    options.body = JSON.stringify(data);
+                }
+                
+                const response = await fetch(url, options);
+                const text = await response.text();
+                
+                try {
+                    const json = JSON.parse(text);
+                    return { success: true, data: json, status: response.status };
+                } catch (e) {
+                    return { 
+                        success: false, 
+                        error: 'JSON Parse Error: ' + e.message, 
+                        text: text, 
+                        status: response.status 
+                    };
+                }
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+        
+        function showResult(elementId, result) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            
+            if (result.success) {
+                element.className = 'result success';
+                element.innerHTML = `✓ ${result.status}\n${JSON.stringify(result.data, null, 2)}`;
+            } else {
+                element.className = 'result error';
+                element.innerHTML = `✗ ${result.status || 'N/A'}\n${result.error || result.text}`;
+            }
+        }
+        
+        async function getTasks() {
+            const result = await makeRequest('GET', API_BASE + '/tasks');
+            showResult('tasksResult', result);
+        }
+        
+        async function createTask() {
+            const data = {
+                title: document.getElementById('taskTitle').value,
+                description: document.getElementById('taskDescription').value,
+                status: document.getElementById('taskStatus').value
+            };
+            const result = await makeRequest('POST', API_BASE + '/tasks', data);
+            showResult('createResult', result);
+        }
+        
+        async function getTask() {
+            const id = document.getElementById('taskId').value;
+            const result = await makeRequest('GET', API_BASE + '/tasks/' + id);
+            showResult('getResult', result);
+        }
+        
+        async function updateTask() {
+            const id = document.getElementById('updateTaskId').value;
+            const data = {};
+            
+            const title = document.getElementById('updateTitle').value;
+            if (title) data.title = title;
+            
+            const status = document.getElementById('updateStatus').value;
+            if (status) data.status = status;
+            
+            const result = await makeRequest('PUT', API_BASE + '/tasks/' + id, data);
+            showResult('updateResult', result);
+        }
+        
+        async function deleteTask() {
+            const id = document.getElementById('deleteTaskId').value;
+            const result = await makeRequest('DELETE', API_BASE + '/tasks/' + id);
+            showResult('deleteResult', result);
+        }
+        
+        async function runFullTest() {
+            const element = document.getElementById('testResult');
+            element.style.display = 'block';
+            element.className = 'result';
+            element.innerHTML = 'Running tests...';
+            
+            let results = [];
+            
+            const getResult = await makeRequest('GET', API_BASE + '/tasks');
+            results.push(`GET /api/tasks: ${getResult.success ? '✓' : '✗'}`);
+            
+            const createData = {
+                title: 'Test Task',
+                description: 'Test Description',
+                status: 'pending'
+            };
+            const createResult = await makeRequest('POST', API_BASE + '/tasks', createData);
+            results.push(`POST /api/tasks: ${createResult.success ? '✓' : '✗'}`);
+            
+            let taskId = null;
+            if (createResult.success && createResult.data.data && createResult.data.data.id) {
+                taskId = createResult.data.data.id;
+            }
+            
+            if (taskId) {
+                const getTaskResult = await makeRequest('GET', API_BASE + '/tasks/' + taskId);
+                results.push(`GET /api/tasks/${taskId}: ${getTaskResult.success ? '✓' : '✗'}`);
+                
+                const updateData = { status: 'completed' };
+                const updateResult = await makeRequest('PUT', API_BASE + '/tasks/' + taskId, updateData);
+                results.push(`PUT /api/tasks/${taskId}: ${updateResult.success ? '✓' : '✗'}`);
+                
+                const deleteResult = await makeRequest('DELETE', API_BASE + '/tasks/' + taskId);
+                results.push(`DELETE /api/tasks/${taskId}: ${deleteResult.success ? '✓' : '✗'}`);
+            }
+            
+            element.className = 'result success';
+            element.innerHTML = results.join('\n');
+        }
+    </script>
+</body>
+</html>
